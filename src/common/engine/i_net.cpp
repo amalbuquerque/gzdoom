@@ -193,6 +193,7 @@ void BindToLocalPort (SOCKET s, u_short port)
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(port);
+	Printf("**ELIXIR** Elixir UDP port on: %d\n", port);
 
 	v = bind (s, (sockaddr *)&address, sizeof(address));
 	if (v == SOCKET_ERROR)
