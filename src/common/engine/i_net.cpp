@@ -362,22 +362,29 @@ void PacketGet (void)
 //
 void ElixirPacketGet (void)
 {
+	if (elixirsocket == INVALID_SOCKET)
+		return;
+
 	int c;
 	socklen_t fromlen;
 	sockaddr_in fromaddress;
 	int node;
 
 	fromlen = sizeof(fromaddress);
-	c = recvfrom (elixirsocket, (char*)ElixirTransmitBuffer, TRANSMIT_SIZE, 0,
+	c = recvfrom (elixirsocket, (char*)ElixirTransmitBuffer, TRANSMIT_SIZE, MSG_DONTWAIT,
 				  (sockaddr *)&fromaddress, &fromlen);
 
-	Net_WriteByte(DEM_NETEVENT);
-	Net_WriteString((const char*)ElixirTransmitBuffer);
-	Net_WriteByte(3);
-	Net_WriteLong(0);
-	Net_WriteLong(0);
-	Net_WriteLong(0);
-	Net_WriteByte(0);
+	if (c > 0) {
+		Printf ("Received message of size %d\n", c);
+		ElixirTransmitBuffer[c] = 0;
+		Net_WriteByte(DEM_NETEVENT);
+		Net_WriteString((const char*)ElixirTransmitBuffer);
+		Net_WriteByte(3);
+		Net_WriteLong(0);
+		Net_WriteLong(0);
+		Net_WriteLong(0);
+		Net_WriteByte(0);
+	}
 }
 
 sockaddr_in *PreGet (void *buffer, int bufferlen, bool noabort)
@@ -1050,6 +1057,7 @@ void I_NetCmd (void)
 	}
 	else if (doomcom.command == CMD_GET)
 	{
+		ElixirPacketGet();
 		PacketGet ();
 	}
 	else
