@@ -77,6 +77,7 @@
 #include "i_interface.h"
 
 
+#include "d_net.h"
 #include "i_net.h"
 
 // As per http://support.microsoft.com/kb/q192599/ the standard
@@ -114,6 +115,7 @@ doomcom_t doomcom;
 
 static u_short DOOMPORT = (IPPORT_USERRESERVED + 29);
 static SOCKET mysocket = INVALID_SOCKET;
+static SOCKET elixirsocket = INVALID_SOCKET;
 static sockaddr_in sendaddress[MAXNETNODES];
 static uint8_t sendplayer[MAXNETNODES];
 
@@ -159,6 +161,7 @@ struct PreGamePacket
 };
 
 uint8_t TransmitBuffer[TRANSMIT_SIZE];
+uint8_t ElixirTransmitBuffer[TRANSMIT_SIZE];
 
 FString GetPlayerName(int num)
 {
@@ -193,7 +196,6 @@ void BindToLocalPort (SOCKET s, u_short port)
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(port);
-	Printf("**ELIXIR** Elixir UDP port on: %d\n", port);
 
 	v = bind (s, (sockaddr *)&address, sizeof(address));
 	if (v == SOCKET_ERROR)
@@ -355,6 +357,29 @@ void PacketGet (void)
 	doomcom.datalength = (short)c;
 }
 
+//
+// ElixirPacketGet
+//
+void ElixirPacketGet (void)
+{
+	int c;
+	socklen_t fromlen;
+	sockaddr_in fromaddress;
+	int node;
+
+	fromlen = sizeof(fromaddress);
+	c = recvfrom (elixirsocket, (char*)ElixirTransmitBuffer, TRANSMIT_SIZE, 0,
+				  (sockaddr *)&fromaddress, &fromlen);
+
+	Net_WriteByte(DEM_NETEVENT);
+	Net_WriteString((const char*)ElixirTransmitBuffer);
+	Net_WriteByte(3);
+	Net_WriteLong(0);
+	Net_WriteLong(0);
+	Net_WriteLong(0);
+	Net_WriteByte(0);
+}
+
 sockaddr_in *PreGet (void *buffer, int bufferlen, bool noabort)
 {
 	static sockaddr_in fromaddress;
@@ -464,6 +489,10 @@ void StartNetwork (bool autoPort)
 	// create communication socket
 	mysocket = UDPsocket ();
 	BindToLocalPort (mysocket, autoPort ? 0 : DOOMPORT);
+	elixirsocket = UDPsocket ();
+	BindToLocalPort (elixirsocket, 5223);
+	Printf ("**ELIXIR** Elixir UDP port on: %d\n", 5223);
+
 #ifndef __sun
 	ioctlsocket (mysocket, FIONBIO, &trueval);
 #else
@@ -690,15 +719,15 @@ bool HostGame (int i)
 		I_FatalError("You cannot host a game with %d players. The limit is currently %d.", numplayers, MAXNETNODES);
 	}
 
-	if (numplayers == 1)
-	{ // Special case: Only 1 player, so don't bother starting the network
-		netgame = false;
-		multiplayer = true;
-		doomcom.id = DOOMCOM_ID;
-		doomcom.numplayers = doomcom.numnodes = 1;
-		doomcom.consoleplayer = 0;
-		return true;
-	}
+	// if (numplayers == 1)
+	// { // Special case: Only 1 player, so don't bother starting the network
+	// 	netgame = false;
+	// 	multiplayer = true;
+	// 	doomcom.id = DOOMCOM_ID;
+	// 	doomcom.numplayers = doomcom.numnodes = 1;
+	// 	doomcom.consoleplayer = 0;
+	// 	return true;
+	// }
 
 	StartNetwork (false);
 
